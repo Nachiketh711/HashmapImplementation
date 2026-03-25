@@ -1,49 +1,87 @@
 import java.util.*;
 
-class DNSEntry{
-    String ip;
-    long expiry;
+public class Solution {
 
-    DNSEntry(String ip,long expiry){
-        this.ip=ip;
-        this.expiry=expiry;
-    }
-}
+    // n-gram -> documents containing it
+    static HashMap<String, Set<String>> ngramIndex = new HashMap<>();
 
-public class solution {
+    static int N = 5; // 5-gram
 
-    static HashMap<String,DNSEntry> cache = new HashMap<>();
+    // Generate n-grams
+    public static List<String> generateNgrams(String text) {
+        String[] words = text.split("\\s+");
+        List<String> ngrams = new ArrayList<>();
 
-    static String resolve(String domain){
-
-        long now = System.currentTimeMillis();
-
-        if(cache.containsKey(domain)){
-
-            DNSEntry entry = cache.get(domain);
-
-            if(entry.expiry > now){
-                System.out.println("Cache HIT");
-                return entry.ip;
+        for (int i = 0; i <= words.length - N; i++) {
+            StringBuilder gram = new StringBuilder();
+            for (int j = 0; j < N; j++) {
+                gram.append(words[i + j]).append(" ");
             }
-            else{
-                System.out.println("Cache EXPIRED");
-                cache.remove(domain);
+            ngrams.add(gram.toString().trim());
+        }
+
+        return ngrams;
+    }
+
+    // Store document in index
+    public static void addDocument(String docName, String text) {
+        List<String> grams = generateNgrams(text);
+
+        for (String gram : grams) {
+            ngramIndex.putIfAbsent(gram, new HashSet<>());
+            ngramIndex.get(gram).add(docName);
+        }
+    }
+
+    // Analyze document for plagiarism
+    public static void analyzeDocument(String docName, String text) {
+
+        List<String> grams = generateNgrams(text);
+        System.out.println("Extracted " + grams.size() + " n-grams");
+
+        HashMap<String, Integer> matchCount = new HashMap<>();
+
+        for (String gram : grams) {
+
+            if (ngramIndex.containsKey(gram)) {
+
+                for (String doc : ngramIndex.get(gram)) {
+                    matchCount.put(doc, matchCount.getOrDefault(doc, 0) + 1);
+                }
+
             }
         }
 
-        System.out.println("Cache MISS");
+        for (String doc : matchCount.keySet()) {
 
-        String ip="172.217.14.206";
+            int matches = matchCount.get(doc);
+            double similarity = (matches * 100.0) / grams.size();
 
-        cache.put(domain,new DNSEntry(ip, now + 300000));
+            System.out.println("Found " + matches + " matching n-grams with \"" + doc + "\"");
 
-        return ip;
+            System.out.printf("Similarity: %.1f%% ", similarity);
+
+            if (similarity > 50)
+                System.out.println("(PLAGIARISM DETECTED)");
+            else if (similarity > 10)
+                System.out.println("(suspicious)");
+            else
+                System.out.println("(safe)");
+        }
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
 
-        System.out.println(resolve("google.com"));
-        System.out.println(resolve("google.com"));
+        // existing documents
+        String essay1 = "machine learning improves systems by learning from data automatically";
+        String essay2 = "learning from data automatically improves machine intelligence systems";
+
+        addDocument("essay_089.txt", essay1);
+        addDocument("essay_092.txt", essay2);
+
+        // new essay
+        String newEssay = "machine learning improves systems by learning from data automatically and helps automation";
+
+        analyzeDocument("essay_123.txt", newEssay);
     }
 }
